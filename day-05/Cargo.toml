@@ -7,6 +7,6 @@ edition = "2021"
 
 [lib]
 name = "aoc"
-path = "src/bin/lib.rs"
+path = "src/lib.rs"
 
 [dependencies]
