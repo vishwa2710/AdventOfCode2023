@@ -1,58 +1,53 @@
+use aoc::{get_map, Line, RangeMap, MAP_NAMES};
+use std::collections::HashMap;
+
 fn main() {
     let input_str = include_str!("input.txt");
     let result = solution(input_str);
     println!("{}", result);
 }
 
-const MAP_NAMES: [&str; 7] = [
-    "seed-to-soil map",
-    "soil-to-fertilizer map",
-    "fertilizer-to-water map",
-    "water-to-light map",
-    "light-to-temperature map",
-    "temperature-to-humidity map",
-    "humidity-to-location map",
-];
-
-fn get_map(key: &str, input_str: &str) -> Vec<(u128, u128, u128)> {
-    let mut destination_to_source: Vec<(u128, u128, u128)> = Vec::new();
-    let mut in_destination_to_source_map = false;
-    for line in input_str.lines().skip(1) {
-        if line.contains(key) {
-            in_destination_to_source_map = true;
-            continue;
-        }
-        if line == "" {
-            in_destination_to_source_map = false;
-            continue;
-        }
-        if in_destination_to_source_map {
-            let (seed, soil, range) = {
-                let mut iter = line.split_whitespace().map(|x| x.parse::<u128>().unwrap());
-                (
-                    iter.next().unwrap(),
-                    iter.next().unwrap(),
-                    iter.next().unwrap(),
-                )
-            };
-            destination_to_source.push((seed, soil, range));
-        }
+fn get_number_from_map(map: &Vec<RangeMap>, target_line: &Line) -> Vec<Line> {
+    if target_line.end < map[0].source.start || map[map.len() - 1].source.end < target_line.start {
+        return vec![*target_line; 1];
     }
 
-    destination_to_source.sort_by_key(|k| k.1);
-    destination_to_source
-}
+    let mut line_vecs = Vec::new();
 
-fn get_number_from_map(map: &Vec<(u128, u128, u128)>, key: &u128) -> u128 {
-    for (destination_start, source_start, range) in map {
-        if key < source_start {
-            return *key;
-        }
-        if key >= source_start && key < &(source_start + range) {
-            return destination_start + (key - source_start);
-        }
+    // add extra line that has a section before the first element in the map
+    if target_line.start < map[0].source.start {
+        line_vecs.push({
+            Line {
+                start: target_line.start,
+                end: map[0].source.start,
+            }
+        });
     }
-    *key
+
+    for element in map.iter() {
+        if !target_line.intersects(&element.source) {
+            continue;
+        }
+
+        let intersecting_line = element.source.overlap(&target_line);
+
+        let intersecting_line = Line {
+            start: intersecting_line.start + element.diff,
+            end: intersecting_line.end + element.diff,
+        };
+
+        line_vecs.push(intersecting_line);
+    }
+
+    // add extra line that has a section after the last element in the map
+    if map[map.len() - 1].source.end < target_line.end {
+        line_vecs.push(Line {
+            start: map[map.len() - 1].source.end,
+            end: target_line.end,
+        });
+    }
+
+    line_vecs
 }
 
 fn solution(input_str: &str) -> String {
@@ -64,22 +59,36 @@ fn solution(input_str: &str) -> String {
         .nth(1)
         .unwrap()
         .split_whitespace()
-        .map(|x| x.parse::<u128>().unwrap())
-        .collect::<Vec<u128>>();
+        .map(|x| x.parse::<i128>().unwrap())
+        .collect::<Vec<i128>>();
 
-    let mut min_seed_location = u128::MAX;
-    let mut counter = 0;
+    let mut map_map: HashMap<&str, Vec<RangeMap>> = HashMap::new();
+    for map_name in MAP_NAMES {
+        let map = get_map(map_name, input_str);
+        map_map.insert(map_name, map);
+    }
+
+    let mut min_seed_location = i128::MAX;
     for i in (1..seed_data.len()).step_by(2) {
-        for seed in seed_data[i - 1]..(seed_data[i - 1] + seed_data[i]) {
-            let mut output_value = seed;
-            for map_name in MAP_NAMES {
-                let map = get_map(map_name, input_str);
-                output_value = get_number_from_map(&map, &output_value);
-            }
-            min_seed_location = min_seed_location.min(output_value);
-            counter += 1;
+        let mut output_value = vec![
+            Line {
+                start: seed_data[i - 1],
+                end: (seed_data[i - 1] + seed_data[i]),
+            };
+            1
+        ];
+
+        for map_name in MAP_NAMES {
+            let map = &map_map[map_name];
+
+            output_value = output_value
+                .iter()
+                .flat_map(|x| get_number_from_map(map, x))
+                .collect::<Vec<Line>>();
         }
-        println!("{}", counter);
+
+        min_seed_location =
+            min_seed_location.min(output_value.iter().map(|x| x.start).min().unwrap());
     }
 
     min_seed_location.to_string()
