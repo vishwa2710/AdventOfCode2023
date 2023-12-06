@@ -1,3 +1,5 @@
+use aoc::roots;
+
 fn main() {
     let input_str = include_str!("input.txt");
     let result = solution(input_str);
@@ -13,8 +15,8 @@ fn solution(input_str: &str) -> String {
         .nth(1)
         .unwrap()
         .split_whitespace()
-        .map(|x| x.parse::<u32>().unwrap())
-        .collect::<Vec<u32>>();
+        .map(|x| x.parse::<i64>().unwrap())
+        .collect::<Vec<i64>>();
     let distances = input_str
         .lines()
         .nth(1)
@@ -23,20 +25,21 @@ fn solution(input_str: &str) -> String {
         .nth(1)
         .unwrap()
         .split_whitespace()
-        .map(|x| x.parse::<u32>().unwrap())
-        .collect::<Vec<u32>>();
+        .map(|x| x.parse::<i64>().unwrap())
+        .collect::<Vec<i64>>();
 
     let combined = times
         .into_iter()
         .zip(distances.into_iter())
-        .collect::<Vec<(u32, u32)>>();
+        .collect::<Vec<(i64, i64)>>();
 
     combined
         .iter()
         .map(|(time, distance)| {
-            (1..*time)
-                .filter(|&speed| (speed * (time - speed)) > *distance)
-                .count()
+            let (min_bound, max_bound) = roots(1, -*time, *distance).unwrap();
+            // since we want to "further", we want to take the ceil of the min bound and the floor of the max bound
+            // and then subtract 1 since we want the number of integers between the two bounds
+            (max_bound.ceil() - min_bound.floor()).abs() as usize - 1
         })
         .product::<usize>()
         .to_string()
