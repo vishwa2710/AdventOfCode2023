@@ -58,13 +58,10 @@ fn solution(input_str: &str) -> String {
         }
     }
 
-    let mut lcm_value = node_counters[0];
-
-    for &num in &node_counters[1..] {
-        lcm_value = lcm(lcm_value, num);
-    }
-
-    lcm_value.to_string()
+    node_counters
+        .iter()
+        .fold(1, |acc, x| lcm(acc, *x))
+        .to_string()
 }
 
 #[cfg(test)]
